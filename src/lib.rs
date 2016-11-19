@@ -241,13 +241,13 @@ where A: TaggableValue<TaggingMethod, Two>;
 impl<TaggingMethod, A: Clone, B: Clone> Clone for EfficientOptionTuple<A, B, TaggingMethod>
 where A: TaggableValue<TaggingMethod, Two> {
     fn clone(&self) -> Self {
-        let b = unsafe { self.ref_b().map_or(uninitialized(), Clone::clone) };
+        let b = unsafe { self.ref_1().map_or(uninitialized(), Clone::clone) };
         EfficientOptionTuple(self.0.clone(), b, PhantomData)
     }
 
     fn clone_from(&mut self, source: &Self) {
         self.0 = source.0.clone();
-        if let Some(b) = source.ref_b() { self.1 = b.clone(); }
+        if let Some(b) = source.ref_1() { self.1 = b.clone(); }
     }
 }
 impl<TaggingMethod, A: Copy, B: Copy> Copy for EfficientOptionTuple<A, B, TaggingMethod>
@@ -263,7 +263,7 @@ where A: TaggableValue<TaggingMethod, Two> {
 impl<TaggingMethod, A: fmt::Debug, B: fmt::Debug> fmt::Debug for EfficientOptionTuple<A, B, TaggingMethod>
 where A: TaggableValue<TaggingMethod, Two> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some(b) = self.ref_b() {
+        if let Some(b) = self.ref_1() {
             write!(f, "EfficientOptionTuple(")?;
             TaggableValue::fmt_untagged(&self.0, f)?;
             write!(f, ", Some({:?}))", b)
@@ -278,7 +278,7 @@ where A: TaggableValue<TaggingMethod, Two> {
 impl<TaggingMethod, A: PartialEq, B: PartialEq> PartialEq for EfficientOptionTuple<A, B, TaggingMethod>
 where A: TaggableValue<TaggingMethod, Two> {
     fn eq(&self, other: &Self) -> bool {
-        TaggableValue::eq(&self.0, &other.0) && match (self.ref_b(), other.ref_b()) {
+        TaggableValue::eq(&self.0, &other.0) && match (self.ref_1(), other.ref_1()) {
             (Some(s), Some(o)) => *s == *o,
             (None, None) => true,
             _ => false,
@@ -286,7 +286,7 @@ where A: TaggableValue<TaggingMethod, Two> {
     }
 
     fn ne(&self, other: &Self) -> bool {
-        TaggableValue::ne(&self.0, &other.0) || match (self.ref_b(), other.ref_b()) {
+        TaggableValue::ne(&self.0, &other.0) || match (self.ref_1(), other.ref_1()) {
             (Some(s), Some(o)) => *s != *o,
             (None, None) => false,
             _ => true,
@@ -300,7 +300,7 @@ impl<TaggingMethod, A: Hash, B: Hash> Hash for EfficientOptionTuple<A, B, Taggin
 where A: TaggableValue<TaggingMethod, Two> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.0.hash(state);
-        if let Some(b) = self.ref_b() { b.hash(state) }
+        if let Some(b) = self.ref_1() { b.hash(state) }
     }
 }
 
@@ -351,23 +351,23 @@ where A: TaggableValue<TaggingMethod, Two> {
     pub fn is_none(&self) -> bool { !self.is_some() }
 
     /// Clones the `A` value
-    pub fn clone_a(self) -> A
+    pub fn clone_0(self) -> A
     where A: Clone { self.0.clone().untag() }
 
     /// Clones the `B` value if one exists
-    pub fn clone_b(self) -> Option<B>
+    pub fn clone_1(self) -> Option<B>
     where B: Clone {
-        self.ref_b().map(Clone::clone)
+        self.ref_1().map(Clone::clone)
     }
 
     /// Gets a reference to the `B` value if one exists
-    pub fn ref_b(&self) -> Option<&B> {
+    pub fn ref_1(&self) -> Option<&B> {
         if self.is_none() { None }
         else { Some(&self.1) }
     }
 
     /// Gets mutable a reference to the `B` value if one exists
-    pub fn mut_b(&mut self) -> Option<&mut B> {
+    pub fn mut_1(&mut self) -> Option<&mut B> {
         match self.0.get_tag() {
             TwoOptions::Zero => None,
             TwoOptions::One => Some(&mut self.1),
@@ -375,13 +375,13 @@ where A: TaggableValue<TaggingMethod, Two> {
     }
 
     /// Replaces the `A` value
-    pub fn replace_a(&mut self, mut a: A) -> A {
+    pub fn replace_0(&mut self, mut a: A) -> A {
         tag(&mut a, self.0.get_tag());
         replace(&mut self.0, a).untag()
     }
 
     /// Replaces the `B` value
-    pub fn replace_b(&mut self, b: Option<B>) -> Option<B> {
+    pub fn replace_1(&mut self, b: Option<B>) -> Option<B> {
         match (self.0.get_tag(), b) {
             (TwoOptions::Zero, None) => None,
             (TwoOptions::Zero, Some(b)) => { unsafe {
@@ -476,17 +476,17 @@ mod tests {
         let v = EfficientOptionTuple::<usize, usize>::some(10, 15);
         assert!(!v.is_none());
         assert!(v.is_some());
-        assert_eq!(v.clone_a(), 10);
-        assert_eq!(v.clone_b(), Some(15));
-        assert_eq!(*v.ref_b().unwrap(), 15);
+        assert_eq!(v.clone_0(), 10);
+        assert_eq!(v.clone_1(), Some(15));
+        assert_eq!(*v.ref_1().unwrap(), 15);
         assert_eq!(v.destructure(), (10, Some(15)));
 
         let v = EfficientOptionTuple::<usize, usize>::none(10);
         assert!(v.is_none());
         assert!(!v.is_some());
-        assert_eq!(v.clone_a(), 10);
-        assert_eq!(v.clone_b(), None);
-        assert_eq!(v.ref_b(), None);
+        assert_eq!(v.clone_0(), 10);
+        assert_eq!(v.clone_1(), None);
+        assert_eq!(v.ref_1(), None);
         assert_eq!(v.destructure(), (10, None));
     }
 
@@ -495,18 +495,18 @@ mod tests {
         let mut v = EfficientOptionTuple::<usize, usize>::some(10, 15);
         assert_eq!(v.destructure(), (10, Some(15)));
 
-        *v.mut_b().unwrap() = 16;
+        *v.mut_1().unwrap() = 16;
         assert_eq!(v.destructure(), (10, Some(16)));
 
-        v.replace_a(11);
+        v.replace_0(11);
         assert_eq!(v.destructure(), (11, Some(16)));
 
-        v.replace_b(Some(17));
+        v.replace_1(Some(17));
         assert_eq!(v.destructure(), (11, Some(17)));
 
-        v.replace_b(None);
+        v.replace_1(None);
         assert_eq!(v.destructure(), (11, None));
-        assert_eq!(v.mut_b(), None);
+        assert_eq!(v.mut_1(), None);
 
         v.map(|a, b| {
             *a = 12;
@@ -514,10 +514,10 @@ mod tests {
         });
         assert_eq!(v.destructure(), (12, None));
 
-        v.replace_a(13);
+        v.replace_0(13);
         assert_eq!(v.destructure(), (13, None));
 
-        v.replace_b(Some(18));
+        v.replace_1(Some(18));
         assert_eq!(v.destructure(), (13, Some(18)));
 
         v.map(|a, b| {
