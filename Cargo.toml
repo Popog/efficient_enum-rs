@@ -1,0 +1,11 @@
+[package]
+name = "efficient_enum"
+version = "0.1.0"
+authors = ["Popog"]
+description = "Space-efficient enum values"
+repository = "https://github.com/Popog/efficient_enum-rs"
+readme = "README.md"
+keywords = ["enum", "option"]
+license = "MIT/Apache-2.0"
+
+[dependencies]
