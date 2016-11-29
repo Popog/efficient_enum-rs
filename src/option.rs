@@ -177,7 +177,7 @@ where A: TaggableValue<TM, One> {
         self.ref_1().map(Clone::clone)
     }
 
-    /// Gets a reference to both the `A` and `B` values if they exists
+    /// Gets references to both the `A` and `B` values if they exist
     pub fn as_ref(&self) -> Option<(&A, &B)> {
         if self.is_none() { None }
         else { Some((&(self.0).1, &self.1)) }
@@ -195,16 +195,46 @@ where A: TaggableValue<TM, One> {
         else { Some(&self.1) }
     }
 
-    /// Gets mutable a reference to the `B` value if one exists
-    pub fn mut_1(&mut self) -> Option<&mut B> {
-        if self.is_none() { None }
-        else { Some(&mut self.1) }
+    /// Gets references to both the `A` and `B` values by assuming they exist
+    pub unsafe fn unwrap_ref(&self) -> (&A, &B) {
+        debug_assert!(self.is_some());
+        (&(self.0).1, &self.1)
+    }
+
+    /// Gets a reference to the `A` value by assuming one exists
+    pub unsafe fn unwrap_ref_0(&self) -> &A {
+        debug_assert!(self.is_some());
+        &(self.0).1
+    }
+
+    /// Gets a reference to the `A` value by assuming one exists
+    pub unsafe fn unwrap_ref_1(&self) -> &B {
+        debug_assert!(self.is_some());
+        &self.1
     }
 
     /// Gets a reference to the `A` value and a mutable reference to the `B` value if they exist
     pub fn as_mut(&mut self) -> Option<(&A, &mut B)> {
         if self.is_none() { None }
         else { Some((&(self.0).1, &mut self.1)) }
+    }
+
+    /// Gets mutable a reference to the `B` value if one exists
+    pub fn mut_1(&mut self) -> Option<&mut B> {
+        if self.is_none() { None }
+        else { Some(&mut self.1) }
+    }
+
+    /// Gets a reference to the `A` value and a mutable reference to the `B` value by assuming they exist
+    pub unsafe fn unwrap_as_mut(&mut self) -> (&A, &mut B) {
+        debug_assert!(self.is_some());
+        (&(self.0).1, &mut self.1)
+    }
+
+    /// Gets mutable a reference to the `B` value by assuming one exists
+    pub unsafe fn unwrap_mut_1(&mut self) -> &mut B {
+        debug_assert!(self.is_some());
+        &mut self.1
     }
 
     /// Returns an `EfficientOptionInnerSome` if the option is a `Some` value, returns an
@@ -217,6 +247,20 @@ where A: TaggableValue<TM, One> {
         } else {
             IsSome(EfficientOptionInnerSome(self))
         }
+    }
+
+    /// Returns an `EfficientOptionInnerSome`.
+    #[inline]
+    pub unsafe fn inner_some(&mut self) -> EfficientOptionInnerSome<A, B, TM> {
+        debug_assert!(self.is_some());
+        EfficientOptionInnerSome(self)
+    }
+
+    /// Returns an `EfficientOptionInnerSome`.
+    #[inline]
+    pub unsafe fn inner_none(&mut self) -> EfficientOptionInnerNone<A, B, TM> {
+        debug_assert!(self.is_none());
+        EfficientOptionInnerNone(self)
     }
 
     /// Destructures an `EfficientOption`
@@ -236,6 +280,27 @@ where A: TaggableValue<TM, One> {
     #[inline]
     pub fn destructure_1(self) -> Option<B> {
         if self.is_none() { None } else { Some(self.1) }
+    }
+
+    /// Destructures an `EfficientOption`
+    #[inline]
+    pub unsafe fn unwrap_destructure(self) -> (A, B) {
+        debug_assert!(self.is_some());
+        (utils::untag(self.0), self.1)
+    }
+
+    /// Destructures an `EfficientOption` into the `A` value by assuming one exists
+    #[inline]
+    pub unsafe fn unwrap_destructure_0(self) -> A {
+        debug_assert!(self.is_some());
+        utils::untag(self.0)
+    }
+
+    /// Destructures an `EfficientOption` into the `B` value by assuming one exists
+    #[inline]
+    pub unsafe fn unwrap_destructure_1(self) -> B {
+        debug_assert!(self.is_some());
+        self.1
     }
 
     /// Takes the value out of the option, leaving a None in its place.
@@ -693,6 +758,32 @@ where A: TaggableValue<TM, Two> {
         (utils::untag(self.0), b)
     }
 
+    /// Destructures an `EfficientOptionTuple` into the `A` value
+    #[inline]
+    pub fn destructure_0(self) -> A {
+        utils::untag(self.0)
+    }
+
+    /// Destructures an `EfficientOptionTuple` into the `B` value if one exists
+    #[inline]
+    pub fn destructure_1(self) -> Option<B> {
+        if self.is_none() { None } else { Some(self.1) }
+    }
+
+    /// Destructures an `EfficientOptionTuple` by assuming the `B` values exists
+    #[inline]
+    pub unsafe fn unwrap_destructure(self) -> (A, B) {
+        debug_assert!(self.is_some());
+        (utils::untag(self.0), self.1)
+    }
+
+    /// Destructures an `EfficientOptionTuple`into the `B` value by assuming one exists
+    #[inline]
+    pub unsafe fn unwrap_destructure_1(self) -> B {
+        debug_assert!(self.is_some());
+        self.1
+    }
+
     /// Takes the `B` value out of the option, leaving a None in its place.
     pub fn take_1(&mut self) -> Option<B> {
         if self.is_none() { None }
@@ -726,6 +817,20 @@ where A: TaggableValue<TM, Two> {
         }
     }
 
+    /// Returns an `EfficientOptionTupleInnerSome`.
+    #[inline]
+    pub unsafe fn inner_some(&mut self) -> EfficientOptionTupleInnerSome<A, B, TM> {
+        debug_assert!(self.is_some());
+        EfficientOptionTupleInnerSome(self)
+    }
+
+    /// Returns an `EfficientOptionTupleInnerSome`.
+    #[inline]
+    pub unsafe fn inner_none(&mut self) -> EfficientOptionTupleInnerNone<A, B, TM> {
+        debug_assert!(self.is_none());
+        EfficientOptionTupleInnerNone(self)
+    }
+
     /// Clones the `A` value
     pub fn clone_0(&self) -> A
     where A: Clone { utils::untag(self.0.clone()) }
@@ -742,10 +847,22 @@ where A: TaggableValue<TM, Two> {
         else { Some(&self.1) }
     }
 
+    /// Gets a reference to the `B` value by assuming one exists
+    pub unsafe fn unwrap_ref_1(&self) -> &B {
+        debug_assert!(self.is_some());
+        &self.1
+    }
+
     /// Gets mutable a reference to the `B` value if one exists
     pub fn mut_1(&mut self) -> Option<&mut B> {
         if self.is_none() { None }
         else { Some(&mut self.1) }
+    }
+
+    /// Gets mutable a reference to the `B` value if one exists
+    pub unsafe fn unwrap_mut_1(&mut self) -> &mut B {
+        debug_assert!(self.is_some());
+        &mut self.1
     }
 
     /// Replaces the `A` value
