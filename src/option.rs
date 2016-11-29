@@ -287,16 +287,16 @@ where A: TaggableValue<TM, One> {
 }
 
 /// A helper type for `EfficientOption`, useful for adding data to `is_none` options.
-pub struct EfficientOptionNoneMut<'a, A: 'a, B: 'a, TM: 'a>(&'a mut EfficientOption<A, B, TM>)
+pub struct EfficientOptionNoneMut<'a, A: 'a, B: 'a, TM: 'a = TagMSB>(&'a mut EfficientOption<A, B, TM>)
 where A: TaggableValue<TM, One>;
 
 /// A helper type for `EfficientOption`, useful for accessing 'is_some' data and removing it.
-pub struct EfficientOptionSomeMut<'a, A: 'a, B: 'a, TM: 'a>(&'a mut EfficientOption<A, B, TM>)
+pub struct EfficientOptionSomeMut<'a, A: 'a, B: 'a, TM: 'a = TagMSB>(&'a mut EfficientOption<A, B, TM>)
 where A: TaggableValue<TM, One>;
 
 /// A helper type for `EfficientOption`, gives access to `EfficientOptionNoneMut` and
 /// `EfficientOptionSomeMut` variants.
-pub enum EfficientOptionMut<'a, A: 'a, B: 'a, TM: 'a>
+pub enum EfficientOptionMut<'a, A: 'a, B: 'a, TM: 'a = TagMSB>
 where A: TaggableValue<TM, One> {
     IsNone(EfficientOptionNoneMut<'a, A, B, TM>),
     IsSome(EfficientOptionSomeMut<'a, A, B, TM>),
@@ -744,17 +744,17 @@ where A: TaggableValue<TM, Two> {
 
 /// A helper type useful for accessing the lack of data or replacing it with nothing without having to
 /// use unwraps.
-pub struct EfficientOptionTupleNoneMut<'a, A: 'a, B: 'a, TM: 'a>(&'a mut EfficientOptionTuple<A, B, TM>)
+pub struct EfficientOptionTupleNoneMut<'a, A: 'a, B: 'a, TM: 'a = TagMSB>(&'a mut EfficientOptionTuple<A, B, TM>)
 where A: TaggableValue<TM, Two>;
 
 /// A helper type useful for accessing the optional data or removing it without having to
 /// use unwraps.
-pub struct EfficientOptionTupleSomeMut<'a, A: 'a, B: 'a, TM: 'a>(&'a mut EfficientOptionTuple<A, B, TM>)
+pub struct EfficientOptionTupleSomeMut<'a, A: 'a, B: 'a, TM: 'a = TagMSB>(&'a mut EfficientOptionTuple<A, B, TM>)
 where A: TaggableValue<TM, Two>;
 
 /// A helper type useful for accessing the lack of data or replacing it with nothing without having to
 /// use unwraps.
-pub enum EfficientOptionTupleMut<'a, A: 'a, B: 'a, TM: 'a>
+pub enum EfficientOptionTupleMut<'a, A: 'a, B: 'a, TM: 'a = TagMSB>
 where A: TaggableValue<TM, Two> {
     IsNone(EfficientOptionTupleNoneMut<'a, A, B, TM>),
     IsSome(EfficientOptionTupleSomeMut<'a, A, B, TM>),
