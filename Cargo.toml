@@ -1,6 +1,6 @@
 [package]
 name = "efficient_enum"
-version = "0.2.2"
+version = "0.3.0"
 authors = ["Popog"]
 description = "Space-efficient enum values"
 repository = "https://github.com/Popog/efficient_enum-rs"

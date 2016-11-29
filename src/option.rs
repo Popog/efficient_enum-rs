@@ -177,7 +177,7 @@ where A: TaggableValue<TM, One> {
         self.ref_1().map(Clone::clone)
     }
 
-    /// Gets a reference to both the `A` and `B` values if one exists
+    /// Gets a reference to both the `A` and `B` values if they exists
     pub fn as_ref(&self) -> Option<(&A, &B)> {
         if self.is_none() { None }
         else { Some((&(self.0).1, &self.1)) }
@@ -201,14 +201,21 @@ where A: TaggableValue<TM, One> {
         else { Some(&mut self.1) }
     }
 
-    /// Returns an `EfficientOptionMut` if the option is a `Some` value.
+    /// Gets a reference to the `A` value and a mutable reference to the `B` value if they exist
+    pub fn as_mut(&mut self) -> Option<(&A, &mut B)> {
+        if self.is_none() { None }
+        else { Some((&(self.0).1, &mut self.1)) }
+    }
+
+    /// Returns an `EfficientOptionInnerSome` if the option is a `Some` value, returns an
+    /// `EfficientOptionInnerNone` otherwise.
     #[inline]
-    pub fn as_mut(&mut self) -> EfficientOptionMut<A, B, TM> {
-        use self::EfficientOptionMut::{IsNone, IsSome};
+    pub fn inner(&mut self) -> EfficientOptionInner<A, B, TM> {
+        use self::EfficientOptionInner::{IsNone, IsSome};
         if self.is_none() {
-            IsNone(EfficientOptionNoneMut(self))
+            IsNone(EfficientOptionInnerNone(self))
         } else {
-            IsSome(EfficientOptionSomeMut(self))
+            IsSome(EfficientOptionInnerSome(self))
         }
     }
 
@@ -219,13 +226,13 @@ where A: TaggableValue<TM, One> {
         else { Some((utils::untag(self.0), self.1)) }
     }
 
-    /// Destructures an `EfficientOption`
+    /// Destructures an `EfficientOption` into the `A` value if one exists
     #[inline]
     pub fn destructure_0(self) -> Option<A> {
         if self.is_none() { None } else { Some(utils::untag(self.0)) }
     }
 
-    /// Destructures an `EfficientOption`
+    /// Destructures an `EfficientOption` into the `B` value if one exists
     #[inline]
     pub fn destructure_1(self) -> Option<B> {
         if self.is_none() { None } else { Some(self.1) }
@@ -295,36 +302,36 @@ where A: TaggableValue<TM, One> {
 }
 
 /// A helper type for `EfficientOption`, useful for adding data to `is_none` options.
-pub struct EfficientOptionNoneMut<'a, A: 'a, B: 'a, TM: 'a = TagMSB>(&'a mut EfficientOption<A, B, TM>)
+pub struct EfficientOptionInnerNone<'a, A: 'a, B: 'a, TM: 'a = TagMSB>(&'a mut EfficientOption<A, B, TM>)
 where A: TaggableValue<TM, One>;
 
 /// A helper type for `EfficientOption`, useful for accessing 'is_some' data and removing it.
-pub struct EfficientOptionSomeMut<'a, A: 'a, B: 'a, TM: 'a = TagMSB>(&'a mut EfficientOption<A, B, TM>)
+pub struct EfficientOptionInnerSome<'a, A: 'a, B: 'a, TM: 'a = TagMSB>(&'a mut EfficientOption<A, B, TM>)
 where A: TaggableValue<TM, One>;
 
-/// A helper type for `EfficientOption`, gives access to `EfficientOptionNoneMut` and
-/// `EfficientOptionSomeMut` variants.
-pub enum EfficientOptionMut<'a, A: 'a, B: 'a, TM: 'a = TagMSB>
+/// A helper type for `EfficientOption`, gives access to `EfficientOptionInnerNone` and
+/// `EfficientOptionInnerSome` variants.
+pub enum EfficientOptionInner<'a, A: 'a, B: 'a, TM: 'a = TagMSB>
 where A: TaggableValue<TM, One> {
-    IsNone(EfficientOptionNoneMut<'a, A, B, TM>),
-    IsSome(EfficientOptionSomeMut<'a, A, B, TM>),
+    IsNone(EfficientOptionInnerNone<'a, A, B, TM>),
+    IsSome(EfficientOptionInnerSome<'a, A, B, TM>),
 }
 
-impl<'a, TM, A, B> EfficientOptionNoneMut<'a, A, B, TM>
+impl<'a, TM, A, B> EfficientOptionInnerNone<'a, A, B, TM>
 where A: TaggableValue<TM, One> {
     /// Adds a value
-    pub fn give(self, (a, b): (A, B)) -> EfficientOptionSomeMut<'a, A, B, TM> {
+    pub fn give(self, (a, b): (A, B)) -> EfficientOptionInnerSome<'a, A, B, TM> {
         debug_assert!(self.0.is_none());
         let a = utils::tag(a, One::Untagged);
         unsafe {
             write(&mut (self.0).0 as *mut TagWrapper<A, TM>, a);
             write(&mut (self.0).1 as *mut B, b);
         }
-        EfficientOptionSomeMut(self.0)
+        EfficientOptionInnerSome(self.0)
     }
 }
 
-impl<'a, TM, A, B> EfficientOptionSomeMut<'a, A, B, TM>
+impl<'a, TM, A, B> EfficientOptionInnerSome<'a, A, B, TM>
 where A: TaggableValue<TM, One> {
     /// Clones the `A` value
     pub fn clone_0(&self) -> A
@@ -352,10 +359,40 @@ where A: TaggableValue<TM, One> {
         &(self.0).1
     }
 
+    /// Gets a reference to both the `A` and `B` values
+    pub fn as_ref(&self) -> (&A, &B) {
+        debug_assert!(self.0.is_some());
+        (&((self.0).0).1, &(self.0).1)
+    }
+
     /// Gets mutable a reference to the `B` value
     pub fn mut_1(&mut self) -> &mut B {
         debug_assert!(self.0.is_some());
         &mut (self.0).1
+    }
+
+    /// Gets a reference to the `A` value and a mutable reference to the `B` value
+    pub fn as_mut(&mut self) -> (&A, &mut B) {
+        debug_assert!(self.0.is_some());
+        (&((self.0).0).1, &mut (self.0).1)
+    }
+
+    /// Destructures an `EfficientOptionInnerSome` into a reference to the `A` value
+    pub fn destructure_0(self) -> &'a A {
+        debug_assert!(self.0.is_some());
+        &((self.0).0).1
+    }
+
+    /// Destructures an `EfficientOptionInnerSome` into a mutable reference to the `B` value
+    pub fn destructure_1(self) -> &'a mut B {
+        debug_assert!(self.0.is_some());
+        &mut (self.0).1
+    }
+
+    /// Destructures an `EfficientOptionInnerSome`
+    pub fn destructure(self) -> (&'a A, &'a mut B) {
+        debug_assert!(self.0.is_some());
+        (&((self.0).0).1, &mut (self.0).1)
     }
 
     /// Replaces the `A` value
@@ -369,12 +406,8 @@ where A: TaggableValue<TM, One> {
         replace(self.mut_1(), b)
     }
 
-    /// Clones the value
-    pub fn clone(&self) -> A
-    where A: Clone { utils::untag((self.0).0.clone()) }
-
     /// Takes both values out of the option, leaving a None in its place.
-    pub fn take(self) -> (EfficientOptionNoneMut<'a, A, B, TM>, (A, B)) {
+    pub fn take(self) -> (EfficientOptionInnerNone<'a, A, B, TM>, (A, B)) {
         debug_assert!(self.0.is_some());
         let (a, b) = unsafe {
            let a = read(&(self.0).0 as *const TagWrapper<A, TM>);
@@ -382,30 +415,30 @@ where A: TaggableValue<TM, One> {
            let b = read(&(self.0).1 as *const B);
            (a, b)
         };
-        (EfficientOptionNoneMut(self.0), (utils::untag(a), b))
+        (EfficientOptionInnerNone(self.0), (utils::untag(a), b))
     }
 
     /// Takes both values out of the option, leaving a None in its place.
     /// The version only returns the `A` value
-    pub fn take_0(self) -> (EfficientOptionNoneMut<'a, A, B, TM>, A) {
+    pub fn take_0(self) -> (EfficientOptionInnerNone<'a, A, B, TM>, A) {
         debug_assert!(self.0.is_some());
         let a = unsafe {
            let a = read(&(self.0).0 as *const TagWrapper<A, TM>);
            utils::change_tag(&mut (self.0).0, One::Tagged);
            a
         };
-        (EfficientOptionNoneMut(self.0), utils::untag(a))
+        (EfficientOptionInnerNone(self.0), utils::untag(a))
     }
 
     /// Takes both values out of the option, leaving a None in its place.
     /// The version only returns the `B` value
-    pub fn take_1(self) -> (EfficientOptionNoneMut<'a, A, B, TM>, B) {
+    pub fn take_1(self) -> (EfficientOptionInnerNone<'a, A, B, TM>, B) {
         debug_assert!(self.0.is_some());
         let b = unsafe {
            utils::change_tag(&mut (self.0).0, One::Tagged);
            read(&(self.0).1 as *const B)
         };
-        (EfficientOptionNoneMut(self.0), b)
+        (EfficientOptionInnerNone(self.0), b)
     }
 
     /// Maps the value to a result
@@ -417,7 +450,7 @@ where A: TaggableValue<TM, One> {
     }
 }
 
-impl<'a, TM, A, B> EfficientOptionMut<'a, A, B, TM>
+impl<'a, TM, A, B> EfficientOptionInner<'a, A, B, TM>
 where A: TaggableValue<TM, One> {
     /// Unwraps an option, yielding the content of a `IsSome`.
     ///
@@ -426,8 +459,8 @@ where A: TaggableValue<TM, One> {
     /// Panics if the value is a `IsNone` with a custom panic message provided by
     /// `msg`.
     #[inline]
-    pub fn expect_some(self, msg: &str) -> EfficientOptionSomeMut<'a, A, B, TM> {
-        use self::EfficientOptionMut::{IsNone,IsSome};
+    pub fn expect_some(self, msg: &str) -> EfficientOptionInnerSome<'a, A, B, TM> {
+        use self::EfficientOptionInner::{IsNone,IsSome};
         match self {
             IsNone(_) => utils::expect_failed(msg),
             IsSome(x) => x,
@@ -441,8 +474,8 @@ where A: TaggableValue<TM, One> {
     /// Panics if the value is a `IsSome` with a custom panic message provided by
     /// `msg`.
     #[inline]
-    pub fn expect_none(self, msg: &str) -> EfficientOptionNoneMut<'a, A, B, TM> {
-        use self::EfficientOptionMut::{IsNone,IsSome};
+    pub fn expect_none(self, msg: &str) -> EfficientOptionInnerNone<'a, A, B, TM> {
+        use self::EfficientOptionInner::{IsNone,IsSome};
         match self {
             IsNone(x) => x,
             IsSome(_) => utils::expect_failed(msg),
@@ -459,10 +492,10 @@ where A: TaggableValue<TM, One> {
     ///
     /// Panics if the self value equals `IsNone`.
     #[inline]
-    pub fn unwrap_some(self) -> EfficientOptionSomeMut<'a, A, B, TM> {
-        use self::EfficientOptionMut::{IsNone,IsSome};
+    pub fn unwrap_some(self) -> EfficientOptionInnerSome<'a, A, B, TM> {
+        use self::EfficientOptionInner::{IsNone,IsSome};
         match self {
-            IsNone(_) => panic!("called `EfficientOptionMut::unwrap_some()` on a `IsNone` value"),
+            IsNone(_) => panic!("called `EfficientOptionInner::unwrap_some()` on a `IsNone` value"),
             IsSome(x) => x,
         }
     }
@@ -477,51 +510,51 @@ where A: TaggableValue<TM, One> {
     ///
     /// Panics if the self value equals `IsSome`.
     #[inline]
-    pub fn unwrap_none(self) -> EfficientOptionNoneMut<'a, A, B, TM> {
-        use self::EfficientOptionMut::{IsNone,IsSome};
+    pub fn unwrap_none(self) -> EfficientOptionInnerNone<'a, A, B, TM> {
+        use self::EfficientOptionInner::{IsNone,IsSome};
         match self {
             IsNone(x) => x,
-            IsSome(_) => panic!("called `EfficientOptionMut::unwrap_none()` on a `IsSome` value"),
+            IsSome(_) => panic!("called `EfficientOptionInner::unwrap_none()` on a `IsSome` value"),
         }
     }
 
     /// Returns the contained `IsSome` value or a default.
     #[inline]
-    pub fn unwrap_some_or(self, default: EfficientOptionSomeMut<'a, A, B, TM>) -> EfficientOptionSomeMut<'a, A, B, TM> {
+    pub fn unwrap_some_or(self, default: EfficientOptionInnerSome<'a, A, B, TM>) -> EfficientOptionInnerSome<'a, A, B, TM> {
         self.map(|_| default, |x| x)
     }
 
     /// Returns the contained `IsNone` value or a default.
     #[inline]
-    pub fn unwrap_none_or(self, default: EfficientOptionNoneMut<'a, A, B, TM>) -> EfficientOptionNoneMut<'a, A, B, TM> {
+    pub fn unwrap_none_or(self, default: EfficientOptionInnerNone<'a, A, B, TM>) -> EfficientOptionInnerNone<'a, A, B, TM> {
         self.map(|x| x, |_| default)
     }
 
     /// Returns the contained `IsSome` value or computes it from a closure.
     #[inline]
-    pub fn unwrap_some_or_else<F>(self, f: F) -> EfficientOptionSomeMut<'a, A, B, TM>
-    where F: FnOnce(EfficientOptionNoneMut<'a, A, B, TM>) -> EfficientOptionSomeMut<'a, A, B, TM> {
+    pub fn unwrap_some_or_else<F>(self, f: F) -> EfficientOptionInnerSome<'a, A, B, TM>
+    where F: FnOnce(EfficientOptionInnerNone<'a, A, B, TM>) -> EfficientOptionInnerSome<'a, A, B, TM> {
         self.map(f, |x| x)
     }
 
     /// Returns the contained `IsNone` value or computes it from a closure.
     #[inline]
-    pub fn unwrap_none_or_else<F>(self, f: F) -> EfficientOptionNoneMut<'a, A, B, TM>
-    where F: FnOnce(EfficientOptionSomeMut<'a, A, B, TM>) -> EfficientOptionNoneMut<'a, A, B, TM> {
+    pub fn unwrap_none_or_else<F>(self, f: F) -> EfficientOptionInnerNone<'a, A, B, TM>
+    where F: FnOnce(EfficientOptionInnerSome<'a, A, B, TM>) -> EfficientOptionInnerNone<'a, A, B, TM> {
         self.map(|x| x, f)
     }
 
     /// Applies a function to the contained `IsSome` value or returns a `default`.
     #[inline]
     pub fn map_some_or<U, F>(self, default: U, f: F) -> U
-    where F: FnOnce(EfficientOptionSomeMut<'a, A, B, TM>) -> U {
+    where F: FnOnce(EfficientOptionInnerSome<'a, A, B, TM>) -> U {
         self.map(|_| default, f)
     }
 
     /// Applies a function to the contained `IsNone` value or returns a `default`.
     #[inline]
     pub fn map_none_or<U, F>(self, default: U, f: F) -> U
-    where F: FnOnce(EfficientOptionNoneMut<'a, A, B, TM>) -> U {
+    where F: FnOnce(EfficientOptionInnerNone<'a, A, B, TM>) -> U {
         self.map(f, |_| default)
     }
 
@@ -529,9 +562,9 @@ where A: TaggableValue<TM, One> {
     /// Applies a function to the contained `IsSome` value or computes a `default` from the `IsNone`.
     #[inline]
     pub fn map<U, D, F>(self, default: D, f: F) -> U
-    where D: FnOnce(EfficientOptionNoneMut<'a, A, B, TM>) -> U,
-    F: FnOnce(EfficientOptionSomeMut<'a, A, B, TM>) -> U {
-        use self::EfficientOptionMut::{IsNone,IsSome};
+    where D: FnOnce(EfficientOptionInnerNone<'a, A, B, TM>) -> U,
+    F: FnOnce(EfficientOptionInnerSome<'a, A, B, TM>) -> U {
+        use self::EfficientOptionInner::{IsNone,IsSome};
         match self {
             IsNone(x) => default(x),
             IsSome(x) => f(x),
@@ -681,15 +714,15 @@ where A: TaggableValue<TM, Two> {
     #[inline]
     pub fn is_none(&self) -> bool { !self.is_some() }
 
-    /// Returns an `EfficientOptionTupleSomeMut` if the option is a `Some` value, returns an
-    /// `EfficientOptionTupleNoneMut` otherwise.
+    /// Returns an `EfficientOptionTupleInnerSome` if the option is a `Some` value, returns an
+    /// `EfficientOptionTupleInnerNone` otherwise.
     #[inline]
-    pub fn as_mut(&mut self) -> EfficientOptionTupleMut<A, B, TM> {
-        use self::EfficientOptionTupleMut::{IsNone,IsSome};
+    pub fn inner(&mut self) -> EfficientOptionTupleInner<A, B, TM> {
+        use self::EfficientOptionTupleInner::{IsNone,IsSome};
         if self.is_none() {
-            IsNone(EfficientOptionTupleNoneMut(self))
+            IsNone(EfficientOptionTupleInnerNone(self))
         } else {
-            IsSome(EfficientOptionTupleSomeMut(self))
+            IsSome(EfficientOptionTupleInnerSome(self))
         }
     }
 
@@ -752,36 +785,36 @@ where A: TaggableValue<TM, Two> {
 
 /// A helper type useful for accessing the lack of data or replacing it with nothing without having to
 /// use unwraps.
-pub struct EfficientOptionTupleNoneMut<'a, A: 'a, B: 'a, TM: 'a = TagMSB>(&'a mut EfficientOptionTuple<A, B, TM>)
+pub struct EfficientOptionTupleInnerNone<'a, A: 'a, B: 'a, TM: 'a = TagMSB>(&'a mut EfficientOptionTuple<A, B, TM>)
 where A: TaggableValue<TM, Two>;
 
 /// A helper type useful for accessing the optional data or removing it without having to
 /// use unwraps.
-pub struct EfficientOptionTupleSomeMut<'a, A: 'a, B: 'a, TM: 'a = TagMSB>(&'a mut EfficientOptionTuple<A, B, TM>)
+pub struct EfficientOptionTupleInnerSome<'a, A: 'a, B: 'a, TM: 'a = TagMSB>(&'a mut EfficientOptionTuple<A, B, TM>)
 where A: TaggableValue<TM, Two>;
 
 /// A helper type useful for accessing the lack of data or replacing it with nothing without having to
 /// use unwraps.
-pub enum EfficientOptionTupleMut<'a, A: 'a, B: 'a, TM: 'a = TagMSB>
+pub enum EfficientOptionTupleInner<'a, A: 'a, B: 'a, TM: 'a = TagMSB>
 where A: TaggableValue<TM, Two> {
-    IsNone(EfficientOptionTupleNoneMut<'a, A, B, TM>),
-    IsSome(EfficientOptionTupleSomeMut<'a, A, B, TM>),
+    IsNone(EfficientOptionTupleInnerNone<'a, A, B, TM>),
+    IsSome(EfficientOptionTupleInnerSome<'a, A, B, TM>),
 }
 
-impl<'a, TM, A, B> EfficientOptionTupleNoneMut<'a, A, B, TM>
+impl<'a, TM, A, B> EfficientOptionTupleInnerNone<'a, A, B, TM>
 where A: TaggableValue<TM, Two> {
     /// Clones the `A` value
     pub fn clone_0(&self) -> A
     where A: Clone { self.0.clone_0() }
 
     /// Adds a `B` value
-    pub fn add_1(self, b: B) -> EfficientOptionTupleSomeMut<'a, A, B, TM> {
+    pub fn add_1(self, b: B) -> EfficientOptionTupleInnerSome<'a, A, B, TM> {
         debug_assert!(self.0.is_none());
         unsafe {
             write(&mut (self.0).1 as *mut B, b);
             utils::change_tag(&mut (self.0).0, Two::Option1);
         }
-        EfficientOptionTupleSomeMut(self.0)
+        EfficientOptionTupleInnerSome(self.0)
     }
     /// Maps the `A` value to a result
     pub fn map<R, F: FnOnce(&mut A)-> R>(&mut self, f: F) -> R {
@@ -792,7 +825,7 @@ where A: TaggableValue<TM, Two> {
     }
 }
 
-impl<'a, TM, A, B> EfficientOptionTupleSomeMut<'a, A, B, TM>
+impl<'a, TM, A, B> EfficientOptionTupleInnerSome<'a, A, B, TM>
 where A: TaggableValue<TM, Two> {
     /// Clones the `A` value
     pub fn clone_0(&self) -> A
@@ -817,6 +850,12 @@ where A: TaggableValue<TM, Two> {
         &mut (self.0).1
     }
 
+    /// Destructures an `EfficientOptionTupleInnerSome` into a mutable reference to the `B` value
+    pub fn destructure_1(self) -> &'a mut B {
+        debug_assert!(self.0.is_some());
+        &mut (self.0).1
+    }
+
     /// Replaces the `A` value
     pub fn replace_0(&mut self, a: A) -> A {
         debug_assert!(self.0.is_some());
@@ -824,13 +863,13 @@ where A: TaggableValue<TM, Two> {
     }
 
     /// Removes the `B` value
-    pub fn remove_1(self) -> (EfficientOptionTupleNoneMut<'a, A, B, TM>, B) {
+    pub fn remove_1(self) -> (EfficientOptionTupleInnerNone<'a, A, B, TM>, B) {
         debug_assert!(self.0.is_some());
         let b = unsafe {
            utils::change_tag(&mut (self.0).0, Two::Option0);
            read(&(self.0).1 as *const B)
         };
-        (EfficientOptionTupleNoneMut(self.0), b)
+        (EfficientOptionTupleInnerNone(self.0), b)
     }
 
     /// Maps the `A` and `B` values to a result
@@ -843,7 +882,7 @@ where A: TaggableValue<TM, Two> {
     }
 }
 
-impl<'a, TM, A, B> EfficientOptionTupleMut<'a, A, B, TM>
+impl<'a, TM, A, B> EfficientOptionTupleInner<'a, A, B, TM>
 where A: TaggableValue<TM, Two> {
     /// Unwraps an option, yielding the content of a `IsSome`.
     ///
@@ -852,8 +891,8 @@ where A: TaggableValue<TM, Two> {
     /// Panics if the value is a `IsNone` with a custom panic message provided by
     /// `msg`.
     #[inline]
-    pub fn expect_some(self, msg: &str) -> EfficientOptionTupleSomeMut<'a, A, B, TM> {
-        use self::EfficientOptionTupleMut::{IsNone,IsSome};
+    pub fn expect_some(self, msg: &str) -> EfficientOptionTupleInnerSome<'a, A, B, TM> {
+        use self::EfficientOptionTupleInner::{IsNone,IsSome};
         match self {
             IsNone(_) => utils::expect_failed(msg),
             IsSome(x) => x,
@@ -867,8 +906,8 @@ where A: TaggableValue<TM, Two> {
     /// Panics if the value is a `IsSome` with a custom panic message provided by
     /// `msg`.
     #[inline]
-    pub fn expect_none(self, msg: &str) -> EfficientOptionTupleNoneMut<'a, A, B, TM> {
-        use self::EfficientOptionTupleMut::{IsNone,IsSome};
+    pub fn expect_none(self, msg: &str) -> EfficientOptionTupleInnerNone<'a, A, B, TM> {
+        use self::EfficientOptionTupleInner::{IsNone,IsSome};
         match self {
             IsNone(x) => x,
             IsSome(_) => utils::expect_failed(msg),
@@ -885,10 +924,10 @@ where A: TaggableValue<TM, Two> {
     ///
     /// Panics if the self value equals `IsNone`.
     #[inline]
-    pub fn unwrap_some(self) -> EfficientOptionTupleSomeMut<'a, A, B, TM> {
-        use self::EfficientOptionTupleMut::{IsNone,IsSome};
+    pub fn unwrap_some(self) -> EfficientOptionTupleInnerSome<'a, A, B, TM> {
+        use self::EfficientOptionTupleInner::{IsNone,IsSome};
         match self {
-            IsNone(_) => panic!("called `EfficientOptionTupleMut::unwrap_some()` on a `IsNone` value"),
+            IsNone(_) => panic!("called `EfficientOptionTupleInner::unwrap_some()` on a `IsNone` value"),
             IsSome(x) => x,
         }
     }
@@ -903,51 +942,51 @@ where A: TaggableValue<TM, Two> {
     ///
     /// Panics if the self value equals `IsSome`.
     #[inline]
-    pub fn unwrap_none(self) -> EfficientOptionTupleNoneMut<'a, A, B, TM> {
-        use self::EfficientOptionTupleMut::{IsNone,IsSome};
+    pub fn unwrap_none(self) -> EfficientOptionTupleInnerNone<'a, A, B, TM> {
+        use self::EfficientOptionTupleInner::{IsNone,IsSome};
         match self {
             IsNone(x) => x,
-            IsSome(_) => panic!("called `EfficientOptionTupleMut::unwrap_none()` on a `IsSome` value"),
+            IsSome(_) => panic!("called `EfficientOptionTupleInner::unwrap_none()` on a `IsSome` value"),
         }
     }
 
     /// Returns the contained `IsSome` value or a default.
     #[inline]
-    pub fn unwrap_some_or(self, default: EfficientOptionTupleSomeMut<'a, A, B, TM>) -> EfficientOptionTupleSomeMut<'a, A, B, TM> {
+    pub fn unwrap_some_or(self, default: EfficientOptionTupleInnerSome<'a, A, B, TM>) -> EfficientOptionTupleInnerSome<'a, A, B, TM> {
         self.map(|_| default, |x| x)
     }
 
     /// Returns the contained `IsNone` value or a default.
     #[inline]
-    pub fn unwrap_none_or(self, default: EfficientOptionTupleNoneMut<'a, A, B, TM>) -> EfficientOptionTupleNoneMut<'a, A, B, TM> {
+    pub fn unwrap_none_or(self, default: EfficientOptionTupleInnerNone<'a, A, B, TM>) -> EfficientOptionTupleInnerNone<'a, A, B, TM> {
         self.map(|x| x, |_| default)
     }
 
     /// Returns the contained `IsSome` value or computes it from a closure.
     #[inline]
-    pub fn unwrap_some_or_else<F>(self, f: F) -> EfficientOptionTupleSomeMut<'a, A, B, TM>
-    where F: FnOnce(EfficientOptionTupleNoneMut<'a, A, B, TM>) -> EfficientOptionTupleSomeMut<'a, A, B, TM> {
+    pub fn unwrap_some_or_else<F>(self, f: F) -> EfficientOptionTupleInnerSome<'a, A, B, TM>
+    where F: FnOnce(EfficientOptionTupleInnerNone<'a, A, B, TM>) -> EfficientOptionTupleInnerSome<'a, A, B, TM> {
         self.map(f, |x| x)
     }
 
     /// Returns the contained `IsNone` value or computes it from a closure.
     #[inline]
-    pub fn unwrap_none_or_else<F>(self, f: F) -> EfficientOptionTupleNoneMut<'a, A, B, TM>
-    where F: FnOnce(EfficientOptionTupleSomeMut<'a, A, B, TM>) -> EfficientOptionTupleNoneMut<'a, A, B, TM> {
+    pub fn unwrap_none_or_else<F>(self, f: F) -> EfficientOptionTupleInnerNone<'a, A, B, TM>
+    where F: FnOnce(EfficientOptionTupleInnerSome<'a, A, B, TM>) -> EfficientOptionTupleInnerNone<'a, A, B, TM> {
         self.map(|x| x, f)
     }
 
     /// Applies a function to the contained `IsSome` value or returns a `default`.
     #[inline]
     pub fn map_some_or<U, F>(self, default: U, f: F) -> U
-    where F: FnOnce(EfficientOptionTupleSomeMut<'a, A, B, TM>) -> U {
+    where F: FnOnce(EfficientOptionTupleInnerSome<'a, A, B, TM>) -> U {
         self.map(|_| default, f)
     }
 
     /// Applies a function to the contained `IsNone` value or returns a `default`.
     #[inline]
     pub fn map_none_or<U, F>(self, default: U, f: F) -> U
-    where F: FnOnce(EfficientOptionTupleNoneMut<'a, A, B, TM>) -> U {
+    where F: FnOnce(EfficientOptionTupleInnerNone<'a, A, B, TM>) -> U {
         self.map(f, |_| default)
     }
 
@@ -955,9 +994,9 @@ where A: TaggableValue<TM, Two> {
     /// Applies a function to the contained `IsSome` value or computes a `default` from the `IsNone`.
     #[inline]
     pub fn map<U, D, F>(self, default: D, f: F) -> U
-    where D: FnOnce(EfficientOptionTupleNoneMut<'a, A, B, TM>) -> U,
-    F: FnOnce(EfficientOptionTupleSomeMut<'a, A, B, TM>) -> U {
-        use self::EfficientOptionTupleMut::{IsNone,IsSome};
+    where D: FnOnce(EfficientOptionTupleInnerNone<'a, A, B, TM>) -> U,
+    F: FnOnce(EfficientOptionTupleInnerSome<'a, A, B, TM>) -> U {
+        use self::EfficientOptionTupleInner::{IsNone,IsSome};
         match self {
             IsNone(x) => default(x),
             IsSome(x) => f(x),
@@ -1257,22 +1296,22 @@ mod tests {
     fn test_option_tuple_as_mut() {
         let mut v = EfficientOptionTuple::<usize, usize>::some(10, 15);
         {
-            let r = v.as_mut();
+            let r = v.inner();
             assert_eq!(r.unwrap_some().clone_0(), 10);
         }
         {
-            let r = v.as_mut();
+            let r = v.inner();
             assert_eq!(r.unwrap_some().clone_1(), 15);
         }
         {
-            let r = v.as_mut();
+            let r = v.inner();
             assert_eq!(*r.unwrap_some().ref_1(), 15);
         }
 
 
         let mut v = EfficientOptionTuple::<usize, usize>::none(10);
         {
-            let r = v.as_mut();
+            let r = v.inner();
             assert_eq!(r.unwrap_none().clone_0(), 10);
         }
     }
