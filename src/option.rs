@@ -166,8 +166,10 @@ where A: TaggableValue<TM, One> {
     }
 
     /// Clones the `A` value if one exists
-    pub fn clone_0(&self) -> A
-    where A: Clone { utils::untag(self.0.clone()) }
+    pub fn clone_0(&self) -> Option<A>
+    where A: Clone {
+        self.ref_0().map(Clone::clone)
+    }
 
     /// Clones the `B` value if one exists
     pub fn clone_1(&self) -> Option<B>
@@ -175,7 +177,13 @@ where A: TaggableValue<TM, One> {
         self.ref_1().map(Clone::clone)
     }
 
-    /// Gets a reference to the `B` value if one exists
+    /// Gets a reference to both the `A` and `B` values if one exists
+    pub fn as_ref(&self) -> Option<(&A, &B)> {
+        if self.is_none() { None }
+        else { Some((&(self.0).1, &self.1)) }
+    }
+
+    /// Gets a reference to the `A` value if one exists
     pub fn ref_0(&self) -> Option<&A> {
         if self.is_none() { None }
         else { Some(&(self.0).1) }
